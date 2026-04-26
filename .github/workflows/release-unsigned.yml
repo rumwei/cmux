@@ -1,0 +1,149 @@
+name: Release macOS app (Unsigned)
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  CREATE_DMG_VERSION: 8.0.0
+
+jobs:
+  build-unsigned:
+    runs-on: macos-14
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Select Xcode
+        run: |
+          set -euo pipefail
+          if [ -d "/Applications/Xcode.app/Contents/Developer" ]; then
+            XCODE_DIR="/Applications/Xcode.app/Contents/Developer"
+          else
+            XCODE_APP="$(ls -d /Applications/Xcode*.app 2>/dev/null | head -n 1 || true)"
+            if [ -n "$XCODE_APP" ]; then
+              XCODE_DIR="$XCODE_APP/Contents/Developer"
+            else
+              echo "No Xcode.app found under /Applications" >&2
+              exit 1
+            fi
+          fi
+          echo "DEVELOPER_DIR=$XCODE_DIR" >> "$GITHUB_ENV"
+          export DEVELOPER_DIR="$XCODE_DIR"
+          xcodebuild -version
+          xcrun --sdk macosx --show-sdk-path
+
+      - name: Install build deps
+        run: |
+          ZIG_REQUIRED="0.15.2"
+          if command -v zig >/dev/null 2>&1 && zig version 2>/dev/null | grep -q "^${ZIG_REQUIRED}"; then
+            echo "zig ${ZIG_REQUIRED} already installed"
+          else
+            echo "Installing zig ${ZIG_REQUIRED} from tarball"
+            curl -fSL "https://ziglang.org/download/${ZIG_REQUIRED}/zig-aarch64-macos-${ZIG_REQUIRED}.tar.xz" -o /tmp/zig.tar.xz
+            tar xf /tmp/zig.tar.xz -C /tmp
+            sudo mkdir -p /usr/local/bin /usr/local/lib
+            sudo cp -f /tmp/zig-aarch64-macos-${ZIG_REQUIRED}/zig /usr/local/bin/zig
+            sudo cp -rf /tmp/zig-aarch64-macos-${ZIG_REQUIRED}/lib /usr/local/lib/zig
+            export PATH="/usr/local/bin:$PATH"
+            zig version
+          fi
+          npm install --global "create-dmg@${CREATE_DMG_VERSION}"
+
+      - name: Download pre-built GhosttyKit.xcframework
+        run: |
+          ./scripts/download-prebuilt-ghosttykit.sh
+
+      - name: Cache Swift packages
+        uses: actions/cache@v4
+        with:
+          path: .spm-cache
+          key: spm-${{ hashFiles('GhosttyTabs.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}
+          restore-keys: spm-
+
+      - name: Build universal app (Release, unsigned)
+        run: |
+          xcodebuild -scheme cmux -configuration Release -derivedDataPath build-universal \
+            -destination 'generic/platform=macOS' \
+            -clonedSourcePackagesDirPath .spm-cache \
+            ARCHS="arm64 x86_64" \
+            ONLY_ACTIVE_ARCH=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO build
+
+      - name: Verify binary architectures
+        run: |
+          set -euo pipefail
+          APP_BINARY="build-universal/Build/Products/Release/cmux.app/Contents/MacOS/cmux"
+          CLI_BINARY="build-universal/Build/Products/Release/cmux.app/Contents/Resources/bin/cmux"
+          APP_ARCHS="$(lipo -archs "$APP_BINARY")"
+          CLI_ARCHS="$(lipo -archs "$CLI_BINARY")"
+          echo "App binary architectures: $APP_ARCHS"
+          echo "CLI binary architectures: $CLI_ARCHS"
+          [[ "$APP_ARCHS" == *arm64* && "$APP_ARCHS" == *x86_64* ]]
+          [[ "$CLI_ARCHS" == *arm64* && "$CLI_ARCHS" == *x86_64* ]]
+
+      - name: Create DMG
+        run: |
+          set -euo pipefail
+          APP_PATH="build-universal/Build/Products/Release/cmux.app"
+          DMG_NAME="cmux-macos-unsigned.dmg"
+
+          # Create a temporary directory for DMG contents
+          mkdir -p dmg-contents
+          cp -R "$APP_PATH" dmg-contents/
+
+          # Create DMG using create-dmg
+          create-dmg \
+            --volname "cmux" \
+            --window-pos 200 120 \
+            --window-size 600 400 \
+            --icon-size 100 \
+            --icon "cmux.app" 150 190 \
+            --app-drop-link 450 190 \
+            "$DMG_NAME" \
+            dmg-contents/ || true
+
+          # Fallback to hdiutil if create-dmg fails
+          if [ ! -f "$DMG_NAME" ]; then
+            hdiutil create -volname "cmux" -srcfolder dmg-contents -ov -format UDZO "$DMG_NAME"
+          fi
+
+          ls -la "$DMG_NAME"
+
+      - name: Get version from tag
+        id: get_version
+        run: |
+          VERSION="${GITHUB_REF#refs/tags/}"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.get_version.outputs.version }}
+          name: ${{ steps.get_version.outputs.version }}
+          body: |
+            ## cmux ${{ steps.get_version.outputs.version }}
+
+            **Note: This is an unsigned build.** macOS Gatekeeper may block the app on first launch.
+            To open it, right-click the app and select "Open", or run:
+            ```bash
+            xattr -cr /Applications/cmux.app
+            ```
+
+            ### Changes
+            - Add snippet editor sidebar for terminal panels (⌘⇧⌥E)
+            - Fix workspace rename not immediately updating sidebar title
+          files: |
+            cmux-macos-unsigned.dmg
+          draft: false
+          prerelease: false
