@@ -14,7 +14,7 @@ env:
 
 jobs:
   build-unsigned:
-    runs-on: macos-14
+    runs-on: macos-15
     timeout-minutes: 45
     steps:
       - name: Checkout
@@ -25,10 +25,18 @@ jobs:
       - name: Select Xcode
         run: |
           set -euo pipefail
-          if [ -d "/Applications/Xcode.app/Contents/Developer" ]; then
-            XCODE_DIR="/Applications/Xcode.app/Contents/Developer"
+          # List available Xcode versions
+          ls -d /Applications/Xcode*.app 2>/dev/null || true
+          # Use Xcode 16 for Swift 6.0 support
+          if [ -d "/Applications/Xcode_16.2.app/Contents/Developer" ]; then
+            XCODE_DIR="/Applications/Xcode_16.2.app/Contents/Developer"
+          elif [ -d "/Applications/Xcode_16.1.app/Contents/Developer" ]; then
+            XCODE_DIR="/Applications/Xcode_16.1.app/Contents/Developer"
+          elif [ -d "/Applications/Xcode_16.0.app/Contents/Developer" ]; then
+            XCODE_DIR="/Applications/Xcode_16.0.app/Contents/Developer"
           else
-            XCODE_APP="$(ls -d /Applications/Xcode*.app 2>/dev/null | head -n 1 || true)"
+            # Fallback to latest available
+            XCODE_APP="$(ls -d /Applications/Xcode*.app 2>/dev/null | sort -V | tail -n 1 || true)"
             if [ -n "$XCODE_APP" ]; then
               XCODE_DIR="$XCODE_APP/Contents/Developer"
             else
@@ -36,9 +44,11 @@ jobs:
               exit 1
             fi
           fi
+          sudo xcode-select -s "$XCODE_DIR"
           echo "DEVELOPER_DIR=$XCODE_DIR" >> "$GITHUB_ENV"
           export DEVELOPER_DIR="$XCODE_DIR"
           xcodebuild -version
+          swift --version
           xcrun --sdk macosx --show-sdk-path
 
       - name: Install build deps
