@@ -2,6 +2,16 @@
 
 All notable changes to cmux are documented here.
 
+## [0.63.2.0] - 2026-04-26
+
+### Added
+- Snippet editor sidebar for terminal panels - type commands, separate with blank lines, double-click to send to terminal (⌘⇧⌥E)
+- Snippet editor content persists across app restarts via session restore
+- Resizable snippet editor width
+
+### Fixed
+- Workspace rename now immediately updates sidebar title (previously required restart)
+
 ## [0.63.2] - 2026-04-06
 
 ### Added
