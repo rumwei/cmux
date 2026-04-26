@@ -12557,30 +12557,17 @@ private struct TabItemView: View, Equatable {
                 workspaceSnapshotStorage = nextSnapshot
                 contextMenuState.pendingWorkspaceSnapshot = nil
                 contextMenuState.hasDeferredWorkspaceObservationInvalidation = false
-#if DEBUG
-                cmuxDebugLog("sidebar.refreshSnapshot workspace=\(tab.id.uuidString.prefix(8)) action=immediateChange newTitle=\"\(nextSnapshot.title)\"")
-#endif
                 return
             }
             if force || deferredBaseline != nextSnapshot {
                 contextMenuState.hasDeferredWorkspaceObservationInvalidation = true
                 contextMenuState.pendingWorkspaceSnapshot = nextSnapshot
-#if DEBUG
-                cmuxDebugLog("sidebar.refreshSnapshot workspace=\(tab.id.uuidString.prefix(8)) action=deferred newTitle=\"\(nextSnapshot.title)\"")
-#endif
             }
             return
         }
 
         if force || workspaceSnapshotStorage != nextSnapshot {
-#if DEBUG
-            cmuxDebugLog("sidebar.refreshSnapshot workspace=\(tab.id.uuidString.prefix(8)) action=applied oldTitle=\"\(workspaceSnapshotStorage?.title ?? "nil")\" newTitle=\"\(nextSnapshot.title)\"")
-#endif
             workspaceSnapshotStorage = nextSnapshot
-        } else {
-#if DEBUG
-            cmuxDebugLog("sidebar.refreshSnapshot workspace=\(tab.id.uuidString.prefix(8)) action=skipped (unchanged) title=\"\(nextSnapshot.title)\"")
-#endif
         }
     }
 

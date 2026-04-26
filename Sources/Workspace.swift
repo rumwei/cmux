@@ -7806,12 +7806,6 @@ final class Workspace: Identifiable, ObservableObject {
             customTitle = trimmed
             self.title = trimmed
         }
-#if DEBUG
-        cmuxDebugLog(
-            "workspace.setCustomTitle id=\(id.uuidString.prefix(8)) " +
-            "newTitle=\"\(self.title)\" customTitle=\"\(customTitle ?? "nil")\""
-        )
-#endif
     }
 
     func setCustomDescription(_ description: String?) {
