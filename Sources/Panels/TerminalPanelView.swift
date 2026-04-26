@@ -24,7 +24,7 @@ struct TerminalPanelView: View {
             terminalView
 
             if snippetStore.isVisible {
-                Divider()
+                SnippetEditorResizeHandle(width: $snippetStore.width)
 
                 SnippetEditorView(
                     store: snippetStore,

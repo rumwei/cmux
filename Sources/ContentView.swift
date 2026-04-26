@@ -12547,26 +12547,40 @@ private struct TabItemView: View, Equatable {
 
         if contextMenuState.isVisible {
             let deferredBaseline = contextMenuState.pendingWorkspaceSnapshot ?? workspaceSnapshotStorage
-            // Color changes are driven by explicit clicks in the Workspace Color
-            // submenu, and SwiftUI's context-menu content does not reliably fire
-            // `.onDisappear` after a button tap (issue #3037). Apply color
+            // Color and title changes are driven by explicit clicks in the context
+            // menu, and SwiftUI's context-menu content does not reliably fire
+            // `.onDisappear` after a button tap (issue #3037). Apply these
             // changes immediately so the row reflects the user's selection
             // instead of waiting on a flush that may never happen.
-            if deferredBaseline?.customColorHex != nextSnapshot.customColorHex {
+            if deferredBaseline?.customColorHex != nextSnapshot.customColorHex ||
+               deferredBaseline?.title != nextSnapshot.title {
                 workspaceSnapshotStorage = nextSnapshot
                 contextMenuState.pendingWorkspaceSnapshot = nil
                 contextMenuState.hasDeferredWorkspaceObservationInvalidation = false
+#if DEBUG
+                cmuxDebugLog("sidebar.refreshSnapshot workspace=\(tab.id.uuidString.prefix(8)) action=immediateChange newTitle=\"\(nextSnapshot.title)\"")
+#endif
                 return
             }
             if force || deferredBaseline != nextSnapshot {
                 contextMenuState.hasDeferredWorkspaceObservationInvalidation = true
                 contextMenuState.pendingWorkspaceSnapshot = nextSnapshot
+#if DEBUG
+                cmuxDebugLog("sidebar.refreshSnapshot workspace=\(tab.id.uuidString.prefix(8)) action=deferred newTitle=\"\(nextSnapshot.title)\"")
+#endif
             }
             return
         }
 
         if force || workspaceSnapshotStorage != nextSnapshot {
+#if DEBUG
+            cmuxDebugLog("sidebar.refreshSnapshot workspace=\(tab.id.uuidString.prefix(8)) action=applied oldTitle=\"\(workspaceSnapshotStorage?.title ?? "nil")\" newTitle=\"\(nextSnapshot.title)\"")
+#endif
             workspaceSnapshotStorage = nextSnapshot
+        } else {
+#if DEBUG
+            cmuxDebugLog("sidebar.refreshSnapshot workspace=\(tab.id.uuidString.prefix(8)) action=skipped (unchanged) title=\"\(nextSnapshot.title)\"")
+#endif
         }
     }
 

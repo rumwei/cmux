@@ -129,6 +129,7 @@ enum CmuxSurfaceTabBarBuiltInAction: String, Codable, Sendable, CaseIterable, Ha
     case newBrowser = "cmux.newBrowser"
     case splitRight = "cmux.splitRight"
     case splitDown = "cmux.splitDown"
+    case toggleSnippetEditor = "cmux.toggleSnippetEditor"
 
     init?(configID: String) {
         switch configID {
@@ -140,6 +141,8 @@ enum CmuxSurfaceTabBarBuiltInAction: String, Codable, Sendable, CaseIterable, Ha
             self = .splitRight
         case "cmux.splitDown", "splitDown":
             self = .splitDown
+        case "cmux.toggleSnippetEditor", "toggleSnippetEditor":
+            self = .toggleSnippetEditor
         default:
             return nil
         }
@@ -159,6 +162,8 @@ enum CmuxSurfaceTabBarBuiltInAction: String, Codable, Sendable, CaseIterable, Ha
             return "square.split.2x1"
         case .splitDown:
             return "square.split.1x2"
+        case .toggleSnippetEditor:
+            return "doc.text"
         }
     }
 
@@ -172,6 +177,8 @@ enum CmuxSurfaceTabBarBuiltInAction: String, Codable, Sendable, CaseIterable, Ha
             return .splitRight
         case .splitDown:
             return .splitDown
+        case .toggleSnippetEditor:
+            return .custom("cmux.toggleSnippetEditor")
         }
     }
 }
@@ -1071,12 +1078,14 @@ struct CmuxSurfaceTabBarButton: Codable, Sendable, Hashable, Identifiable {
         case target
     }
 
+    static let toggleSnippetEditor = actionReference(CmuxSurfaceTabBarBuiltInAction.toggleSnippetEditor.configID)
     static let newTerminal = actionReference(CmuxSurfaceTabBarBuiltInAction.newTerminal.configID)
     static let newBrowser = actionReference(CmuxSurfaceTabBarBuiltInAction.newBrowser.configID)
     static let splitRight = actionReference(CmuxSurfaceTabBarBuiltInAction.splitRight.configID)
     static let splitDown = actionReference(CmuxSurfaceTabBarBuiltInAction.splitDown.configID)
 
     static let defaults: [CmuxSurfaceTabBarButton] = [
+        .toggleSnippetEditor,
         .newTerminal,
         .newBrowser,
         .splitRight,
@@ -1462,6 +1471,9 @@ struct CmuxResolvedConfigAction: Identifiable, Sendable, Hashable {
         case .splitDown:
             title = String(localized: "command.terminalSplitDown.title", defaultValue: "Split Down")
             keywords = ["terminal", "split", "down"]
+        case .toggleSnippetEditor:
+            title = String(localized: "command.toggleSnippetEditor.title", defaultValue: "Toggle Snippet Editor")
+            keywords = ["snippet", "editor", "toggle"]
         }
 
         return CmuxResolvedConfigAction(

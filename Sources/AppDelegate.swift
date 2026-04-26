@@ -4241,6 +4241,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
         guard isMainTerminalWindow(window) else { return }
         guard window.attachedSheet == nil else { return }
         guard !isCommandPaletteEffectivelyVisible(in: window) else { return }
+        // Never route keys away from the snippet editor
+        if let responder = window.firstResponder, cmuxIsSnippetEditorResponder(responder) {
+            return
+        }
         // If the active first responder is a text-field editor (e.g. a popover's
         // search field whose field editor is borrowed from the parent window),
         // never re-route the keystroke to the terminal. Symmetric with
@@ -5032,12 +5036,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
 
     /// Toggle the snippet editor sidebar for the currently focused terminal panel
     func toggleSnippetEditorForFocusedTerminal() {
-        guard let context = focusedTerminalShortcutContext() else { return }
-        guard let workspace = context.tabManager.tabs.first(where: { $0.id == context.workspaceId }) else { return }
-        guard let terminalPanel = workspace.terminalPanel(for: context.panelId) else { return }
+        // Try normal terminal context first
+        if let context = focusedTerminalShortcutContext() {
+            if let workspace = context.tabManager.tabs.first(where: { $0.id == context.workspaceId }),
+               let terminalPanel = workspace.terminalPanel(for: context.panelId) {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    terminalPanel.snippetStore.isVisible.toggle()
+                }
+                return
+            }
+        }
 
-        withAnimation(.easeInOut(duration: 0.2)) {
-            terminalPanel.snippetStore.isVisible.toggle()
+        // Fallback: if snippet editor is focused, find its owning terminal and toggle
+        if let window = NSApp.keyWindow,
+           let responder = window.firstResponder,
+           cmuxIsSnippetEditorResponder(responder),
+           let context = contextForMainWindow(window) ?? contextForMainTerminalWindow(window),
+           let workspace = context.tabManager.selectedWorkspace,
+           let panelId = workspace.focusedPanelId,
+           let terminalPanel = workspace.terminalPanel(for: panelId) {
+            withAnimation(.easeInOut(duration: 0.2)) {
+                terminalPanel.snippetStore.isVisible.toggle()
+            }
         }
     }
 
@@ -9307,6 +9327,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
             return false
         }
 
+        // Don't intercept keys when snippet editor is active - let it handle text input normally
+        // Exception: allow toggleSnippetEditor shortcut to close the editor
+        if let responder = NSApp.keyWindow?.firstResponder, cmuxIsSnippetEditorResponder(responder) {
+            if !matchConfiguredShortcut(event: event, action: .toggleSnippetEditor) {
+                return false
+            }
+        }
+
         let normalizedFlags = flags.subtracting([.numericPad, .function, .capsLock])
         let commandPaletteTargetWindow = commandPaletteWindowForShortcutEvent(event)
         let commandPaletteShortcutWindow = shouldHandleCommandPaletteShortcutEvent(
@@ -11139,6 +11167,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
                     direction: .down,
                     preferredWindow: event.window ?? NSApp.keyWindow ?? NSApp.mainWindow
                 )
+                return true
+            case .toggleSnippetEditor:
+                toggleSnippetEditorForFocusedTerminal()
                 return true
             }
         case .command, .agent, .workspaceCommand:

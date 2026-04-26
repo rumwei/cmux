@@ -17,7 +17,7 @@ struct SnippetEditorView: View {
             Divider()
             editorContent
         }
-        .frame(width: 280)
+        .frame(width: store.width)
         .background(Color(nsColor: .controlBackgroundColor))
         .onAppear {
             shouldFocusEditor = true
@@ -43,52 +43,24 @@ struct SnippetEditorView: View {
         .padding(.vertical, 8)
     }
 
-    @ViewBuilder
     private var editorContent: some View {
-        if store.snippets.isEmpty && store.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            emptyState
-        } else {
-            snippetList
-        }
-    }
-
-    private var emptyState: some View {
-        VStack(spacing: 12) {
-            Image(systemName: "doc.text")
-                .font(.system(size: 32))
-                .foregroundColor(.secondary)
-
-            Text(String(localized: "snippetEditor.emptyTitle", defaultValue: "No Snippets"))
-                .font(.headline)
-                .foregroundColor(.secondary)
-
-            Text(String(localized: "snippetEditor.emptyDescription", defaultValue: "Type commands here.\nSeparate snippets with blank lines.\nDouble-click to send to terminal."))
-                .font(.caption)
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
-
-            Spacer()
-
-            textEditor
-                .frame(maxHeight: 200)
-        }
-        .padding()
-    }
-
-    private var snippetList: some View {
         VStack(spacing: 0) {
             ScrollView {
                 LazyVStack(spacing: 8) {
-                    ForEach(store.snippets) { snippet in
-                        SnippetBlockView(
-                            snippet: snippet,
-                            isHovered: hoveredSnippetId == snippet.id,
-                            onDoubleTap: {
-                                onSendSnippet(snippet.content)
+                    if store.snippets.isEmpty {
+                        emptyStateHint
+                    } else {
+                        ForEach(store.snippets) { snippet in
+                            SnippetBlockView(
+                                snippet: snippet,
+                                isHovered: hoveredSnippetId == snippet.id,
+                                onDoubleTap: {
+                                    onSendSnippet(snippet.content)
+                                }
+                            )
+                            .onHover { isHovered in
+                                hoveredSnippetId = isHovered ? snippet.id : nil
                             }
-                        )
-                        .onHover { isHovered in
-                            hoveredSnippetId = isHovered ? snippet.id : nil
                         }
                     }
                 }
@@ -100,6 +72,21 @@ struct SnippetEditorView: View {
             textEditor
                 .frame(height: 120)
         }
+    }
+
+    private var emptyStateHint: some View {
+        VStack(spacing: 8) {
+            Image(systemName: "doc.text")
+                .font(.system(size: 24))
+                .foregroundColor(.secondary)
+
+            Text(String(localized: "snippetEditor.emptyDescription", defaultValue: "Type commands below.\nSeparate snippets with blank lines.\nDouble-click to send to terminal."))
+                .font(.caption)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 20)
     }
 
     private var textEditor: some View {
@@ -268,6 +255,42 @@ class SnippetNSTextView: NSTextView {
 extension Notification.Name {
     static let snippetEditorDidBecomeFirstResponder = Notification.Name("snippetEditorDidBecomeFirstResponder")
     static let snippetEditorDidResignFirstResponder = Notification.Name("snippetEditorDidResignFirstResponder")
+}
+
+/// Draggable resize handle for the snippet editor sidebar
+struct SnippetEditorResizeHandle: View {
+    @Binding var width: CGFloat
+    @State private var isDragging = false
+    @State private var isHovering = false
+
+    private let handleWidth: CGFloat = 6
+
+    var body: some View {
+        Rectangle()
+            .fill(isDragging || isHovering ? Color.accentColor.opacity(0.5) : Color(nsColor: .separatorColor))
+            .frame(width: isDragging || isHovering ? handleWidth : 1)
+            .contentShape(Rectangle().size(width: handleWidth, height: .infinity))
+            .onHover { hovering in
+                isHovering = hovering
+                if hovering {
+                    NSCursor.resizeLeftRight.push()
+                } else {
+                    NSCursor.pop()
+                }
+            }
+            .gesture(
+                DragGesture(minimumDistance: 1)
+                    .onChanged { value in
+                        isDragging = true
+                        let delta = -value.translation.width
+                        let newWidth = width + delta
+                        width = min(max(newWidth, SnippetEditorStore.minWidth), SnippetEditorStore.maxWidth)
+                    }
+                    .onEnded { _ in
+                        isDragging = false
+                    }
+            )
+    }
 }
 
 #if DEBUG

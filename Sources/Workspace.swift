@@ -512,10 +512,15 @@ extension Workspace {
                 includeScrollback: includeScrollback,
                 allowFallbackScrollback: shouldPersistScrollback
             )
+            let snippetText = terminalPanel.snippetStore.text.isEmpty ? nil : terminalPanel.snippetStore.text
+            let snippetWidth = terminalPanel.snippetStore.width != SnippetEditorStore.defaultWidth
+                ? Double(terminalPanel.snippetStore.width) : nil
             terminalSnapshot = SessionTerminalPanelSnapshot(
                 workingDirectory: directory,
                 scrollback: resolvedScrollback,
-                agent: effectiveRestorableAgent
+                agent: effectiveRestorableAgent,
+                snippetText: snippetText,
+                snippetEditorWidth: snippetWidth
             )
             browserSnapshot = nil
             markdownSnapshot = nil
@@ -749,6 +754,12 @@ extension Workspace {
                 restoredAgentSnapshotsByPanelId.removeValue(forKey: terminalPanel.id)
                 restoredAgentAutoResumePendingPanelIds.remove(terminalPanel.id)
                 invalidatedRestoredAgentFingerprintsByPanelId.removeValue(forKey: terminalPanel.id)
+            }
+            if let snippetText = snapshot.terminal?.snippetText, !snippetText.isEmpty {
+                terminalPanel.snippetStore.text = snippetText
+            }
+            if let snippetWidth = snapshot.terminal?.snippetEditorWidth {
+                terminalPanel.snippetStore.width = CGFloat(snippetWidth)
             }
             applySessionPanelMetadata(snapshot, toPanelId: terminalPanel.id)
             return terminalPanel.id
@@ -7795,6 +7806,12 @@ final class Workspace: Identifiable, ObservableObject {
             customTitle = trimmed
             self.title = trimmed
         }
+#if DEBUG
+        cmuxDebugLog(
+            "workspace.setCustomTitle id=\(id.uuidString.prefix(8)) " +
+            "newTitle=\"\(self.title)\" customTitle=\"\(customTitle ?? "nil")\""
+        )
+#endif
     }
 
     func setCustomDescription(_ description: String?) {
@@ -12690,7 +12707,18 @@ extension Workspace: BonsplitDelegate {
             "pane=\(pane.id.uuidString.prefix(5)) identifier=\(identifier)"
         )
 #endif
+        if identifier == "cmux.toggleSnippetEditor" {
+            toggleSnippetEditorForSelectedTerminal(inPane: pane)
+            return
+        }
         executeSurfaceTabBarCommandButton(identifier: identifier, inPane: pane)
+    }
+
+    private func toggleSnippetEditorForSelectedTerminal(inPane pane: PaneID) {
+        guard let terminalPanel = selectedTerminalPanel(inPane: pane) else { return }
+        withAnimation(.easeInOut(duration: 0.2)) {
+            terminalPanel.snippetStore.isVisible.toggle()
+        }
     }
 
     func splitTabBar(_ controller: BonsplitController, didRequestTabContextAction action: TabContextAction, for tab: Bonsplit.Tab, inPane pane: PaneID) {

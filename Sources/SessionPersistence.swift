@@ -225,6 +225,8 @@ struct SessionTerminalPanelSnapshot: Codable, Sendable {
     var workingDirectory: String?
     var scrollback: String?
     var agent: SessionRestorableAgentSnapshot?
+    var snippetText: String?
+    var snippetEditorWidth: Double?
 }
 
 struct SessionBrowserPanelSnapshot: Codable, Sendable {
