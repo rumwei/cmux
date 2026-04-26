@@ -524,6 +524,12 @@ func shouldRouteBrowserFindCommandEquivalentThroughWebContentFirst(
 
 func cmuxOwningGhosttyView(for responder: NSResponder?) -> GhosttyNSView? {
     guard let responder else { return nil }
+
+    // SnippetNSTextView is an independent editor that should never route keys to terminal
+    if cmuxIsSnippetEditorResponder(responder) {
+        return nil
+    }
+
     if let ghosttyView = responder as? GhosttyNSView {
         return ghosttyView
     }
@@ -554,6 +560,11 @@ func cmuxOwningGhosttyView(for responder: NSResponder?) -> GhosttyNSView? {
     }
 
     return nil
+}
+
+func cmuxIsSnippetEditorResponder(_ responder: NSResponder) -> Bool {
+    let className = String(describing: type(of: responder))
+    return className == "SnippetNSTextView"
 }
 
 func cmuxFieldEditorOwnerView(_ editor: NSTextView) -> NSView? {

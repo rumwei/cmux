@@ -80,6 +80,9 @@ enum KeyboardShortcutSettings {
         // File Explorer
         case toggleFileExplorer
 
+        // Snippet Editor
+        case toggleSnippetEditor
+
         // Panels
         case openBrowser
         case focusBrowserAddressBar
@@ -144,6 +147,7 @@ enum KeyboardShortcutSettings {
             case .splitBrowserRight: return String(localized: "shortcut.splitBrowserRight.label", defaultValue: "Split Browser Right")
             case .splitBrowserDown: return String(localized: "shortcut.splitBrowserDown.label", defaultValue: "Split Browser Down")
             case .toggleFileExplorer: return String(localized: "shortcut.toggleFileExplorer.label", defaultValue: "Toggle File Explorer")
+            case .toggleSnippetEditor: return String(localized: "shortcut.toggleSnippetEditor.label", defaultValue: "Toggle Snippet Editor")
             case .openBrowser: return String(localized: "shortcut.openBrowser.label", defaultValue: "Open Browser")
             case .focusBrowserAddressBar: return String(localized: "command.browserFocusAddressBar.title", defaultValue: "Focus Address Bar")
             case .browserBack: return String(localized: "menu.view.back", defaultValue: "Back")
@@ -255,6 +259,8 @@ enum KeyboardShortcutSettings {
                 return StoredShortcut(key: "1", command: true, shift: false, option: false, control: false)
             case .toggleFileExplorer:
                 return StoredShortcut(key: "b", command: true, shift: false, option: true, control: false)
+            case .toggleSnippetEditor:
+                return StoredShortcut(key: "e", command: true, shift: true, option: true, control: false)
             case .openBrowser:
                 return StoredShortcut(key: "l", command: true, shift: true, option: false, control: false)
             case .focusBrowserAddressBar:

@@ -24,6 +24,9 @@ final class TerminalPanel: Panel, ObservableObject {
 
     @Published private(set) var tmuxLayoutReport: TmuxPaneLayoutReport?
 
+    /// Snippet editor store for this terminal
+    lazy var snippetStore: SnippetEditorStore = SnippetEditorStore(terminalId: id)
+
     /// Search state for find functionality
     @Published var searchState: TerminalSurface.SearchState? {
         didSet {

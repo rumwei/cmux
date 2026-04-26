@@ -23,6 +23,7 @@ struct PanelContentView: View {
             if let terminalPanel = panel as? TerminalPanel {
                 TerminalPanelView(
                     panel: terminalPanel,
+                    snippetStore: terminalPanel.snippetStore,
                     paneId: paneId,
                     isFocused: isFocused,
                     isVisibleInUI: isVisibleInUI,

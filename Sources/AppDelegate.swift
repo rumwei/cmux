@@ -5030,6 +5030,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
         return false
     }
 
+    /// Toggle the snippet editor sidebar for the currently focused terminal panel
+    func toggleSnippetEditorForFocusedTerminal() {
+        guard let context = focusedTerminalShortcutContext() else { return }
+        guard let workspace = context.tabManager.tabs.first(where: { $0.id == context.workspaceId }) else { return }
+        guard let terminalPanel = workspace.terminalPanel(for: context.panelId) else { return }
+
+        withAnimation(.easeInOut(duration: 0.2)) {
+            terminalPanel.snippetStore.isVisible.toggle()
+        }
+    }
+
     func sidebarVisibility(windowId: UUID) -> Bool? {
         mainWindowContexts.values.first(where: { $0.windowId == windowId })?.sidebarState.isVisible
     }
@@ -9725,6 +9736,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
             // Without this, NSAnimationContext implicitly animates the layout change.
             DispatchQueue.main.async { [weak self] in
                 self?.fileExplorerState?.toggle()
+            }
+            return true
+        }
+
+        if matchConfiguredShortcut(event: event, action: .toggleSnippetEditor) {
+            DispatchQueue.main.async { [weak self] in
+                self?.toggleSnippetEditorForFocusedTerminal()
             }
             return true
         }
